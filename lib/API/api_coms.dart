@@ -129,21 +129,49 @@ import '../storage.dart';
       return validateLoginCredentialsUrl(institute.URL, username, password);
     }
 
-    static Future<bool> validateLoginCredentialsUrl(String url, String username, String password)async{
-      if(username == 'DEMO' && password == 'DEMO'){
+    static Future<bool> validateLoginCredentialsUrl(
+        String url, String username, String password) async {
+
+      // DEMO login shortcut
+      if (username == 'DEMO' && password == 'DEMO') {
         await storage.DataCache.setIsDemoAccount(1);
-        AppAnalitics.sendAnaliticsData(AppAnalitics.INFO, 'api_coms.dart => InstitudesRequest.validateLoginCredentials() Info: Login on demo account');
+        AppAnalitics.sendAnaliticsData(
+            AppAnalitics.INFO,
+            'api_coms.dart => InstitudesRequest.validateLoginCredentials() Info: Login on demo account');
         return true;
       }
-      else if(storage.DataCache.getHasICSFile() ?? false){
+
+      // ICS file eset
+      if (storage.DataCache.getHasICSFile() ?? false) {
         return true;
       }
-      final request = await _APIRequest.postRequest(Uri.parse(url + URLs.TRAININGS_URL), _APIRequest.getGenericPostData(username, password));
-      if(conv.json.decode(request)["ErrorMessage"] != null){
-        AppAnalitics.sendAnaliticsData(AppAnalitics.ERROR, 'api_coms.dart => InstitudesRequest.validateLoginCredentials() NeptunError: ${conv.json.decode(request)["ErrorMessage"]}');
+
+      // 🔹 Ellenőrzés: ha az URL már konkrét API-ra mutat (pl. EH), akkor közvetlenül azt használjuk
+      String loginUrl;
+      if (url.contains("https://neptunh.uni-eszterhazy.hu/Hallgato/api")) {
+        loginUrl = url + "/Account/Authenticate";
+      } else {
+        // normál esetben a base URL + TRAININGS_URL
+        loginUrl = url + URLs.TRAININGS_URL;
       }
-      return conv.json.decode(request)["ErrorMessage"] == null;
+
+      final request = await _APIRequest.postRequest(
+        Uri.parse(loginUrl),
+        _APIRequest.getGenericPostData(username, password),
+      );
+
+      final decoded = conv.json.decode(request);
+
+      if (decoded["ErrorMessage"] != null) {
+        AppAnalitics.sendAnaliticsData(
+            AppAnalitics.ERROR,
+            'api_coms.dart => InstitudesRequest.validateLoginCredentials() '
+            'NeptunError: ${decoded["ErrorMessage"]}');
+      }
+
+      return decoded["ErrorMessage"] == null;
     }
+
 
     static Future<int?> getFirstStudyweek() async{
       final periods = await PeriodsRequest.getPeriods();
