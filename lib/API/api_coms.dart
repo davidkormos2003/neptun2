@@ -52,6 +52,31 @@ import '../storage.dart';
   
       return response;
     }
+
+    static Future<String> getRequest(Uri url) async {
+  HttpOverrides.global = NeptunCerts.getCerts();
+
+  final client = http.Client();
+  var responseText = '';
+
+  try {
+    final response = await client.get(url, headers: {
+      'Content-Type': 'application/json',
+    });
+
+    responseText = response.body;
+  } catch (error) {
+    AppAnalitics.sendAnaliticsData(
+      AppAnalitics.ERROR,
+      'api_coms.dart => _APIRequest.getRequest() NeptunError: GetRequest Error: $error',
+    );
+  } finally {
+    client.close();
+  }
+
+  return responseText;
+}
+
   
     static String getGenericPostData(String username, String password){
       return
@@ -101,7 +126,7 @@ import '../storage.dart';
     }
 
     static Future<List<dynamic>?> getRawJsonWithNameUrlPairs() async{
-      final url = Uri.parse('https://raw.githubusercontent.com/domedav/Neptun-2/main/universityNameUrlPairs.json');
+      final url = Uri.parse('https://raw.githubusercontent.com/davidkormos2003/neptun2/refs/heads/main/universityNameUrlPairs.json');
       final response = await http.get(url);
 
       if (response.statusCode != 200) {
@@ -148,10 +173,12 @@ import '../storage.dart';
 
       // 🔹 Ellenőrzés: ha az URL már konkrét API-ra mutat (pl. EH), akkor közvetlenül azt használjuk
       String loginUrl;
-      if (url.contains("https://neptunh.uni-eszterhazy.hu/Hallgato/api")) {
+
+      if (url.contains("/Hallgato/api")) {
+        // Intézményi API → külön login endpoint
         loginUrl = url + "/Account/Authenticate";
       } else {
-        // normál esetben a base URL + TRAININGS_URL
+        // Központi API → marad a GetTrainings
         loginUrl = url + URLs.TRAININGS_URL;
       }
 
@@ -165,7 +192,7 @@ import '../storage.dart';
       if (decoded["ErrorMessage"] != null) {
         AppAnalitics.sendAnaliticsData(
             AppAnalitics.ERROR,
-            'api_coms.dart => InstitudesRequest.validateLoginCredentials() '
+            'api_coms.dart => InstitudesRequest.validateLoginCredentialsUrl() '
             'NeptunError: ${decoded["ErrorMessage"]}');
       }
 
@@ -279,13 +306,66 @@ import '../storage.dart';
       return list;
     }
 
-    static Future<String> makeCalendarRequest(String calendarJson) async{
-      if(storage.DataCache.getIsDemoAccount()! || storage.DataCache.getHasICSFile()!){
+    static Future<String> makeCalendarRequest(String calendarJson) async {
+      if (storage.DataCache.getIsDemoAccount()! || storage.DataCache.getHasICSFile()!) {
         return '{}';
       }
-      final url = Uri.parse(storage.DataCache.getInstituteUrl()! + URLs.CALENDAR_URL);
-      final request = await _APIRequest.postRequest(url, calendarJson);
-      return request;
+
+      String baseUrl = storage.DataCache.getInstituteUrl()!;
+
+      try {
+        // 🔹 Ha Eszterházy Neptun
+        if (baseUrl.contains("/Hallgato/api")) {
+          // 1️⃣ Félévek lekérése
+          final semestersUrl = Uri.parse(baseUrl + "/SemesterRegistration/GetSemesters");
+          final semestersResp = await _APIRequest.getRequest(semestersUrl); 
+          final semesters = conv.json.decode(semestersResp);
+
+          final termId = semesters["data"]["actualSemester"]["termId"];
+
+          // 2️⃣ Regisztrált tárgyak lekérése adott félévhez
+          final coursesUrl = Uri.parse(baseUrl + "/RegisteredCourses/GetRegisteredCourses?termId=$termId");
+          final coursesResp = await _APIRequest.getRequest(coursesUrl);
+          final courses = conv.json.decode(coursesResp);
+
+          // 🔹 Calendar lekérés Eszterházy esetén
+          final calendarUrl = Uri.parse(baseUrl + "/Calendar/GetCalendarEvents");
+
+          // Nézzük meg, mit tartalmaz a registeredCoursesList
+          final registeredCourses = courses["data"]["registeredCoursesList"] as List;
+
+          // Gyűjtsük ki az indexLineId-kat
+          final indexLineIds = registeredCourses
+              .map((c) => c["studentTrainingId"])
+              .where((id) => id != null)
+              .toList();
+
+          // Debug log
+          print("📌 studentTrainingId: $indexLineIds");
+
+          // Kérés body összeállítása
+          final customBody = conv.json.encode({
+            "termId": termId,
+            "studentTrainingId": indexLineIds,
+          });
+
+          // Most már ezzel küldjük a kérést
+          final request = await _APIRequest.postRequest(calendarUrl, customBody);
+          return request;
+        } 
+        // 🔹 Más sulik (központi API)
+        else {
+          final url = Uri.parse(baseUrl + URLs.CALENDAR_URL); // "/GetCalendarData"
+          final request = await _APIRequest.postRequest(url, calendarJson);
+          return request;
+        }
+      } catch (e) {
+        AppAnalitics.sendAnaliticsData(
+          AppAnalitics.ERROR,
+          "api_coms.dart => makeCalendarRequest() Error: $e"
+        );
+        return '{}';
+      }
     }
   
     static String getCalendarOneWeekJSON(String username, String password, int weekOffset){
@@ -312,8 +392,8 @@ import '../storage.dart';
   
       return
         '{'
-          '"UserLogin":"$username",'
-          '"Password":"$password",'
+          '"userName":"$username",'
+          '"password":"$password",'
           '"Time":true,'
           '"Exam":true,'
           '"startDate":"/Date($epochStart)/",'
@@ -333,8 +413,8 @@ import '../storage.dart';
       final url = Uri.parse(storage.DataCache.getInstituteUrl()! + URLs.MARKBOOK_URL);
       final json =
           '{'
-            '"UserLogin":"$username",'
-            '"Password":"$password",'
+            '"userName":"$username",'
+            '"password":"$password",'
             '"CurrentPage":1,'
             '"filter":{"TermID": 0},'
             '"TotalRowCount":-1'
@@ -486,8 +566,8 @@ import '../storage.dart';
       final password = storage.DataCache.getPassword();
       final json =
           '{'
-          '"UserLogin":"$username",'
-          '"Password":"$password",'
+          '"userName":"$username",'
+          '"password":"$password",'
           '"TotalRowCount":-1'
           '}';
   
@@ -579,8 +659,8 @@ import '../storage.dart';
       final url = Uri.parse(storage.DataCache.getInstituteUrl()! + URLs.PERIODS_URL);
       final json =
           '{'
-          '"UserLogin":"$username",'
-          '"Password":"$password",'
+          '"userName":"$username",'
+          '"password":"$password",'
           '"PeriodTermID":$termID,'
           '"TotalRowCount":-1'
           '}';
@@ -632,8 +712,8 @@ import '../storage.dart';
       //final json = _APIRequest.getGenericPostData(username!, password!);
       final json =
       '{'
-      '"UserLogin":"$username",'
-      '"Password":"$password",'
+      '"userName":"$username",'
+      '"password":"$password",'
       '"CurrentPage":$page,'
       '"TotalRowCount":-1,'
       '"MessageID":0,'
@@ -667,8 +747,8 @@ import '../storage.dart';
       final url = Uri.parse(storage.DataCache.getInstituteUrl()! + URLs.MESSAGE_SET_READ);
       final json =
           '{'
-          '"UserLogin":"$username",'
-          '"Password":"$password",'
+          '"userName":"$username",'
+          '"password":"$password",'
           '"PersonMessageId":$id,'
           '}';
       await _APIRequest.postRequest(url, json);
