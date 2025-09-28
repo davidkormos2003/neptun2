@@ -1517,107 +1517,138 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin{
     await onCalendarRefresh(true);
   }
 
-  Future<List<api.CalendarEntry>> fetchCalendarToList(int offset) async{
-    //final userOffset = storage.DataCache.getUserWeekOffset()!;
-    final request = await api.CalendarRequest.makeCalendarRequest(api.CalendarRequest.getCalendarOneWeekJSON(storage.DataCache.getUsername()!, storage.DataCache.getPassword()!, currentWeekOffset + offset/* + isWeekend + userOffset*/));
-    final list = api.CalendarRequest.getCalendarEntriesFromJSON(request);
-    /*final List<api.CalendarEntry> list2 = [];
-    for(var item in list){
-      bool duplicate = false;
-      for(var item2 in list2){
-        if(item.isIdentical(item2)){
-          duplicate = true;
-          break;
-        }
-      }
-      if(!duplicate){
-        list2.add(item);
-      }
-    }*/
-    //return list2;
-    return list;
+Future<List<api.CalendarEntry>> fetchCalendarToList(int offset) async {
+  final baseUrl = storage.DataCache.getInstituteUrl()!;
+
+  // 🔹 Időintervallum kiszámítása
+  final now = DateTime.now();
+  DateTime monday = now.subtract(Duration(days: now.weekday - 1));
+  DateTime sunday = monday.add(const Duration(days: 6));
+
+  String? requestJson;
+
+  // 🔹 Ha NEM EH API, akkor kell a JSON body
+  if (!baseUrl.contains("/Hallgato/api")) {
+    requestJson = api.CalendarRequest.getCalendarOneWeekJSON(
+      storage.DataCache.getUsername()!,
+      storage.DataCache.getPassword()!,
+      currentWeekOffset + offset,
+    );
   }
 
-  Future<void> fetchCalendar() async{
-    if(storage.DataCache.getHasICSFile() ?? false){
-      final DateTime now = DateTime.now();
-      DateTime previousMonday = now.subtract(Duration(days: now.weekday));
-      if (previousMonday.weekday == 7) {
-        previousMonday = previousMonday.subtract(const Duration(days: 7));
-      }
-      previousMonday = DateTime(previousMonday.year, previousMonday.month, previousMonday.day, 0, 0);
+  // 🔹 Meghívjuk a requestet
+  final request = await api.CalendarRequest.makeCalendarRequest(
+    calendarJson: requestJson,
+    monday: monday,
+    sunday: sunday,
+  );
 
-      DateTime nextSunday = previousMonday.add(const Duration(days: 6, hours: 23, minutes: 59));
-      if (nextSunday.weekday == 7) {
-        nextSunday = nextSunday.subtract(const Duration(days: 7));
-      }
+  // 🔹 Parse
+  final list = api.CalendarRequest.getCalendarEntriesFromJSON(request);
+  return list;
+}
 
-      DateTime startOfTargetWeek = previousMonday.add(Duration(days: currentWeekOffset * 7));
-      DateTime endOfTargetWeek = nextSunday.add(Duration(days: currentWeekOffset * 7));
 
-      final epochStart = startOfTargetWeek.millisecondsSinceEpoch;
-      final epochEnd = endOfTargetWeek.millisecondsSinceEpoch;
-
-      calendarEntries.clear();
-      calendarEntries = ICSCalendar.getCalendarInterval(epochStart, epochEnd);
-
-      storage.DataCache.setHasCachedFirstWeekEpoch(1);
-      return;
+Future<void> fetchCalendar() async {
+  if (storage.DataCache.getHasICSFile() ?? false) {
+    final DateTime now = DateTime.now();
+    DateTime previousMonday = now.subtract(Duration(days: now.weekday));
+    if (previousMonday.weekday == 7) {
+      previousMonday = previousMonday.subtract(const Duration(days: 7));
     }
-    bool hasCachedCalendar = storage.DataCache.getHasCachedCalendar() ?? false;
-    final cacheTime = await storage.getString('CalendarCacheTime');
+    previousMonday = DateTime(previousMonday.year, previousMonday.month, previousMonday.day, 0, 0);
 
-    if(!hasCachedCalendar && !storage.DataCache.getHasNetwork()){
-      return;
+    DateTime nextSunday = previousMonday.add(const Duration(days: 6, hours: 23, minutes: 59));
+    if (nextSunday.weekday == 7) {
+      nextSunday = nextSunday.subtract(const Duration(days: 7));
     }
-    // if we had a save, and the cached value is not older than a day, we can load that up
-    if(hasCachedCalendar && cacheTime != null && (DateTime.now().millisecondsSinceEpoch - DateTime.parse(cacheTime).millisecondsSinceEpoch) < const Duration(hours: 24).inMilliseconds && !storage.DataCache.getIsDemoAccount()!) {
-      final len = await storage.getInt('CachedCalendarLength');
-      for(int i = 0; i < len!; i++){
-        final calEntry = await storage.getString('CachedCalendar_$i');
-        calendarEntries.add(api.CalendarEntry('0', '0', 'NULL', 'NULL', false).fillWithExisting(calEntry!));
-      }
-      storage.DataCache.setHasCachedFirstWeekEpoch(1);
-      Future.delayed(Duration.zero,()async{
-        await _setupClassesNotifications(_classesNotificationList);
-      });
-      return;
-    }
-    //otherwise, just fetch again
-    //final isWeekend = DateTime.now().weekday == DateTime.saturday || DateTime.now().weekday == DateTime.sunday ? 1 : 0;
-    //final userOffset = storage.DataCache.getUserWeekOffset()!;
-    final request = await api.CalendarRequest.makeCalendarRequest(api.CalendarRequest.getCalendarOneWeekJSON(storage.DataCache.getUsername()!, storage.DataCache.getPassword()!, currentWeekOffset/* + isWeekend + userOffset*/));
+
+    DateTime startOfTargetWeek = previousMonday.add(Duration(days: currentWeekOffset * 7));
+    DateTime endOfTargetWeek = nextSunday.add(Duration(days: currentWeekOffset * 7));
+
+    final epochStart = startOfTargetWeek.millisecondsSinceEpoch;
+    final epochEnd = endOfTargetWeek.millisecondsSinceEpoch;
+
     calendarEntries.clear();
-    final list = api.CalendarRequest.getCalendarEntriesFromJSON(request);
-    /*final List<api.CalendarEntry> list2 = [];
-    for(var item in list){
-      bool duplicate = false;
-      for(var item2 in list2){
-        if(item.isIdentical(item2)){
-          //duplicate = true;
-          //break;
-        }
-      }
-      if(!duplicate){
-        list2.add(item);
-      }
-    }*/
-    //calendarEntries = list2;
-    calendarEntries = list;
-    if(currentWeekOffset == 1) {
-      storage.saveInt('CachedCalendarLength', calendarEntries.length);
-      //cache calendar
-      for (int i = 0; i < calendarEntries.length; i++) {
-        storage.saveString('CachedCalendar_$i', calendarEntries[i].toString());
-      }
-      final now = DateTime.now();
-      storage.saveString('CalendarCacheTime', DateTime(now.year, now.month, now.day, 0, 0, 0).toString());
-      Future.delayed(Duration.zero,()async{
-        await _setupClassesNotifications(_classesNotificationList);
-      });
-    }
-    storage.DataCache.setHasCachedCalendar(1);
+    calendarEntries = ICSCalendar.getCalendarInterval(epochStart, epochEnd);
+
+    storage.DataCache.setHasCachedFirstWeekEpoch(1);
+    return;
   }
+
+  bool hasCachedCalendar = storage.DataCache.getHasCachedCalendar() ?? false;
+  final cacheTime = await storage.getString('CalendarCacheTime');
+
+  if (!hasCachedCalendar && !storage.DataCache.getHasNetwork()) {
+    return;
+  }
+
+  // Cache betöltés ha < 24 óra régi
+  if (hasCachedCalendar &&
+      cacheTime != null &&
+      (DateTime.now().millisecondsSinceEpoch - DateTime.parse(cacheTime).millisecondsSinceEpoch) <
+          const Duration(hours: 24).inMilliseconds &&
+      !storage.DataCache.getIsDemoAccount()!) {
+    final len = await storage.getInt('CachedCalendarLength');
+    for (int i = 0; i < len!; i++) {
+      final calEntry = await storage.getString('CachedCalendar_$i');
+      calendarEntries.add(api.CalendarEntry('0', '0', 'NULL', 'NULL', false).fillWithExisting(calEntry!));
+    }
+    storage.DataCache.setHasCachedFirstWeekEpoch(1);
+    Future.delayed(Duration.zero, () async {
+      await _setupClassesNotifications(_classesNotificationList);
+    });
+    return;
+  }
+
+  // 🔹 Dátum intervallum számítása
+  final now = DateTime.now();
+  DateTime monday = now.subtract(Duration(days: now.weekday - 1));
+  DateTime sunday = monday.add(const Duration(days: 6));
+
+  DateTime startOfTargetWeek = monday.add(Duration(days: currentWeekOffset * 7));
+  DateTime endOfTargetWeek = sunday.add(Duration(days: currentWeekOffset * 7));
+
+  final baseUrl = storage.DataCache.getInstituteUrl()!;
+  String request;
+
+  if (baseUrl.contains("/Hallgato/api")) {
+    // 🔹 EH API → login + GET Calendar
+    request = await api.CalendarRequest.makeCalendarRequest(
+      monday: startOfTargetWeek,
+      sunday: endOfTargetWeek,
+    );
+  } else {
+    // 🔹 Központi API → POST CalendarData
+    request = await api.CalendarRequest.makeCalendarRequest(
+      calendarJson: api.CalendarRequest.getCalendarOneWeekJSON(
+        storage.DataCache.getUsername()!,
+        storage.DataCache.getPassword()!,
+        currentWeekOffset,
+      ),
+    );
+  }
+
+  calendarEntries.clear();
+  final list = api.CalendarRequest.getCalendarEntriesFromJSON(request);
+  calendarEntries = list;
+
+  // Cache mentés ha az első hét
+  if (currentWeekOffset == 1) {
+    storage.saveInt('CachedCalendarLength', calendarEntries.length);
+    for (int i = 0; i < calendarEntries.length; i++) {
+      storage.saveString('CachedCalendar_$i', calendarEntries[i].toString());
+    }
+    final now = DateTime.now();
+    storage.saveString('CalendarCacheTime', DateTime(now.year, now.month, now.day, 0, 0, 0).toString());
+    Future.delayed(Duration.zero, () async {
+      await _setupClassesNotifications(_classesNotificationList);
+    });
+  }
+
+  storage.DataCache.setHasCachedCalendar(1);
+}
+
 
   Future<void> fetchMarkbook() async{
     bool hasCachedMarkbook= storage.DataCache.getHasCachedMarkbook() ?? false;

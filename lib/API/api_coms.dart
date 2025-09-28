@@ -247,126 +247,154 @@ import '../storage.dart';
   }
   
   class CalendarRequest{
-    static List<CalendarEntry> getCalendarEntriesFromJSON(String json){
-      if(storage.DataCache.getIsDemoAccount()!){
-        final now = DateTime.now();
-        return <CalendarEntry>[
-          CalendarEntry(DateTime(now.year, now.month, now.day, now.hour + 2, now.minute, 0).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day, now.hour + 2, now.minute + 45, 0).millisecondsSinceEpoch.toString(), 'Aktív óra', 'Jelenlegi', false),
-          //CalendarEntry(DateTime(now.year, now.month, 1, 0, 0, 0).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 1, 23, 23, 23).millisecondsSinceEpoch.toString(), 'DEMO helyszín 1', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 2, 1, 1, 1).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 2, 22, 22, 22).millisecondsSinceEpoch.toString(), 'DEMO helyszín 2', 'DEMO név', false),
-          //CalendarEntry(DateTime(now.year, now.month, 3, 2, 2, 2).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 3, 11, 11, 11).millisecondsSinceEpoch.toString(), 'DEMO helyszín 3', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 3, 3, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 4, 10, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín 4', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 3, 3, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 4, 10, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín 4', 'DEMO vizsga', true),
-          CalendarEntry(DateTime(now.year, now.month, 4, 3, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 4, 10, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín 4', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 4, 3, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 4, 14, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín 4', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 4, 3, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 4, 19, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín 5', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 5, 4, 4, 4).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 5, 9, 9, 9).millisecondsSinceEpoch.toString(), 'DEMO helyszín 5', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 5, 6, 4, 4).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 5, 12, 9, 9).millisecondsSinceEpoch.toString(), 'DEMO helyszín 8', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 5, 8, 4, 4).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 5, 12, 9, 9).millisecondsSinceEpoch.toString(), 'DEMO helyszín 8', 'DEMO név', false),
-          //CalendarEntry(DateTime(now.year, now.month, 6, 5, 5 ,5).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 6, 20, 20, 20).millisecondsSinceEpoch.toString(), 'DEMO helyszín 6', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, 7, 6, 6, 6).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, 7, 6, 7, 7).millisecondsSinceEpoch.toString(), 'DEMO helyszín 7', 'DEMO név', false),
-          CalendarEntry(DateTime(now.year, now.month, now.day, 3, now.hour, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day, now.hour + 1, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín', 'DEMO Értesítés Aznap', true),
-          CalendarEntry(DateTime(now.year, now.month, now.day + 1, now.hour, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day + 1, now.hour + 1, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín', 'DEMO Értesítés 1', true),
-          CalendarEntry(DateTime(now.year, now.month, now.day + 3, now.hour, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day + 3, now.hour + 1, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín', 'DEMO Értesítés 3', true),
-          CalendarEntry(DateTime(now.year, now.month, now.day + 7, now.hour, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day + 7, now.hour + 1, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín', 'DEMO Értesítés 7', true),
-          CalendarEntry(DateTime(now.year, now.month, now.day + 14, now.hour, 3, 3).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day + 14, now.hour + 1, 10, 10).millisecondsSinceEpoch.toString(), 'DEMO helyszín', 'DEMO Értesítés 14', true),
-  
-          CalendarEntry(DateTime(now.year, now.month, now.day, now.hour + 1, now.minute + 11, 4).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.hour + 1, now.minute + 45, 9, 9).millisecondsSinceEpoch.toString(), 'DEMO helyszín 8', 'DEMO Óra', false),
-          CalendarEntry(DateTime(now.year, now.month, now.day, now.hour + 1, now.minute + 12, 4).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.hour + 1, now.minute + 45, 9, 9).millisecondsSinceEpoch.toString(), 'DEMO helyszín 8', 'DEMO Óra', false),
-          CalendarEntry(DateTime(now.year, now.month, now.day, now.hour + 1, now.minute + 13, 4).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.hour + 1, now.minute + 45, 9, 9).millisecondsSinceEpoch.toString(), 'DEMO helyszín 8', 'DEMO Óra', false),
+    static List<CalendarEntry> getCalendarEntriesFromJSON(String json) {
+      var list = <CalendarEntry>[];
+      final parsed = conv.json.decode(json);
 
-          CalendarEntry(DateTime(now.year, now.month, now.day, 17, 00).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day, 18, 30).millisecondsSinceEpoch.toString(), 'Clipping', '1...', false),
-          CalendarEntry(DateTime(now.year, now.month, now.day, 18, 30).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day, 20, 00).millisecondsSinceEpoch.toString(), 'Clipping', '2...', false),
-          CalendarEntry(DateTime(now.year, now.month, now.day + 1, 08, 00).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day + 1, 09, 30).millisecondsSinceEpoch.toString(), 'Clipping', '3...', false),
-          CalendarEntry(DateTime(now.year, now.month, now.day + 1, 08, 00).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day + 1, 09, 30).millisecondsSinceEpoch.toString(), 'Clipping', '4...', false),
-          CalendarEntry(DateTime(now.year, now.month, now.day+ 1, 09, 45).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day + 1, 11, 15).millisecondsSinceEpoch.toString(), 'Clipping', '3...', false),
-          CalendarEntry(DateTime(now.year, now.month, now.day + 1, 09, 45).millisecondsSinceEpoch.toString(), DateTime(now.year, now.month, now.day + 1, 11, 15).millisecondsSinceEpoch.toString(), 'Clipping', '4...', false),
+      try {
+        // 🔹 Eszterházy API (új JSON: "data" lista van benne)
+        if (parsed is Map && parsed.containsKey("data") && parsed["data"] is List) {
+          final dataList = parsed["data"] as List;
 
-        ];
+          for (var item in dataList) {
+            final map = item as Map<String, dynamic>;
+
+            final start = DateTime.parse(map["startDate"]).millisecondsSinceEpoch.toString();
+            final end   = DateTime.parse(map["endDate"]).millisecondsSinceEpoch.toString();
+            final location = (map["rooms"] != null && map["rooms"].toString().trim().isNotEmpty)
+                ? map["rooms"].toString()
+                : "Nincs helyszín";
+            final title = map["name"]?.toString() ?? "Ismeretlen óra";
+            final type  = map["courseType"]?.toString() ?? "";
+            final isExam = type.toLowerCase().contains("vizsga");
+
+            list.add(CalendarEntry(start, end, location, "$title ($type)", isExam));
+          }
+          return list;
+        }
+
+        // 🔹 Központi API
+        if (parsed is Map && parsed.containsKey("calendarData")) {
+          List<dynamic> sublist = parsed['calendarData'];
+          final numberRegex = RegExp(r'\d+');
+          for (var item in sublist) {
+            final map = item as Map<String, dynamic>;
+            list.add(CalendarEntry(
+              numberRegex.firstMatch(map['start'].toString())!.group(0)!,
+              numberRegex.firstMatch(map['end'].toString())!.group(0)!,
+              map['location'].toString(),
+              map['title'].toString(),
+              map['type'] == 1,
+            ));
+          }
+          return list;
+        }
+      } catch (e) {
+        AppAnalitics.sendAnaliticsData(
+          AppAnalitics.ERROR,
+          "CalendarRequest.getCalendarEntriesFromJSON() ParseError: $e",
+        );
       }
-      var list = <CalendarEntry>[].toList();
-      Map<String, dynamic> map = conv.json.decode(json);
-      if(map['calendarData'] == null) {
-        list.add(CalendarEntry(DateTime(1970, 1, 6).millisecondsSinceEpoch.toString(), DateTime.now().millisecondsSinceEpoch.toString(), 'ERROR', 'ERROR', false));
-        AppAnalitics.sendAnaliticsData(AppAnalitics.ERROR, 'api_coms.dart => CalendarRequest.getCalendarEntriesFromJSON() NeptunError: No Calendar data ${map["ErrorMessage"]}');
-        return list;
-      }
-      List<dynamic> sublist = map['calendarData'];
-      //debug.log(sublist.toString());
-      final numberRegex = RegExp(r'\d+');
-      for(var item in sublist){
-        map = item as Map<String, dynamic>;
-        list.add(CalendarEntry(
-            numberRegex.firstMatch(map['start'].toString())!.group(0)!,
-            numberRegex.firstMatch(map['end'].toString())!.group(0)!,
-            map['location'].toString(),
-            map['title'].toString(),
-            map['type'] == 1));
-      }
+
+      // 🔹 Ismeretlen formátum → hiba fallback
+      list.add(CalendarEntry(
+        DateTime(1970, 1, 1).millisecondsSinceEpoch.toString(),
+        DateTime.now().millisecondsSinceEpoch.toString(),
+        "ERROR",
+        "Invalid calendar format",
+        false,
+      ));
       return list;
     }
 
-    static Future<String> makeCalendarRequest(String calendarJson) async {
+
+
+    static Future<String> makeCalendarRequest({
+      String? calendarJson,
+      DateTime? monday,
+      DateTime? sunday,
+    }) async {
       if (storage.DataCache.getIsDemoAccount()! || storage.DataCache.getHasICSFile()!) {
         return '{}';
       }
 
       String baseUrl = storage.DataCache.getInstituteUrl()!;
+      final username = storage.DataCache.getUsername()!;
+      final password = storage.DataCache.getPassword()!;
 
       try {
-        // 🔹 Ha Eszterházy Neptun
+        // 🔹 Eszterházy API
         if (baseUrl.contains("/Hallgato/api")) {
-          // 1️⃣ Félévek lekérése
-          final semestersUrl = Uri.parse(baseUrl + "/SemesterRegistration/GetSemesters");
-          final semestersResp = await _APIRequest.getRequest(semestersUrl); 
-          final semesters = conv.json.decode(semestersResp);
+          final client = http.Client();
+          try {
+            // 1️⃣ Login -> Access Token
+            final loginResp = await client.post(
+              Uri.parse("$baseUrl/Account/Authenticate"),
+              headers: {"Content-Type": "application/json"},
+              body: conv.json.encode({"userName": username, "password": password}),
+            );
 
-          final termId = semesters["data"]["actualSemester"]["termId"];
+            if (loginResp.statusCode != 200) {
+              throw Exception("Login failed: ${loginResp.body}");
+            }
 
-          // 2️⃣ Regisztrált tárgyak lekérése adott félévhez
-          final coursesUrl = Uri.parse(baseUrl + "/RegisteredCourses/GetRegisteredCourses?termId=$termId");
-          final coursesResp = await _APIRequest.getRequest(coursesUrl);
-          final courses = conv.json.decode(coursesResp);
+            final loginData = conv.json.decode(loginResp.body);
+            final token = loginData["data"]?["accessToken"];
+            if (token == null) throw Exception("No accessToken in login response");
 
-          // 🔹 Calendar lekérés Eszterházy esetén
-          final calendarUrl = Uri.parse(baseUrl + "/Calendar/GetCalendarEvents");
+            // 2️⃣ Időintervallum számítás
+            final startDate =
+                "${monday!.year}/${monday.month.toString().padLeft(2, '0')}/${monday.day.toString().padLeft(2, '0')}";
+            final endDate =
+                "${sunday!.year}/${sunday.month.toString().padLeft(2, '0')}/${sunday.day.toString().padLeft(2, '0')}";
 
-          // Nézzük meg, mit tartalmaz a registeredCoursesList
-          final registeredCourses = courses["data"]["registeredCoursesList"] as List;
+            // 3️⃣ Calendar GET tokennel
+            final calendarUrl = Uri.parse(
+              "$baseUrl/Calendar/GetCalendarEvents"
+              "?startDate=$startDate"
+              "&endDate=$endDate"
+              "&displayClasses=true"
+              "&displayExams=false"
+              "&displayOnlineMeetings=false"
+              "&displayOtherEvents=false"
+              "&displayPeriods=false"
+              "&displayTasks=false",
+            );
 
-          // Gyűjtsük ki az indexLineId-kat
-          final indexLineIds = registeredCourses
-              .map((c) => c["studentTrainingId"])
-              .where((id) => id != null)
-              .toList();
+            print("📌 EH Calendar request: $calendarUrl");
 
-          // Debug log
-          print("📌 studentTrainingId: $indexLineIds");
+            final resp = await client.get(
+              calendarUrl,
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer $token", // 🔑 token küldése
+              },
+            );
 
-          // Kérés body összeállítása
-          final customBody = conv.json.encode({
-            "termId": termId,
-            "studentTrainingId": indexLineIds,
-          });
+            print("📥 Calendar raw response: ${resp.body}");
 
-          // Most már ezzel küldjük a kérést
-          final request = await _APIRequest.postRequest(calendarUrl, customBody);
-          return request;
+            return resp.body;
+          } finally {
+            client.close();
+          }
         } 
-        // 🔹 Más sulik (központi API)
+        // 🔹 Más sulik (központi API, POST marad)
         else {
-          final url = Uri.parse(baseUrl + URLs.CALENDAR_URL); // "/GetCalendarData"
-          final request = await _APIRequest.postRequest(url, calendarJson);
+          final url = Uri.parse(baseUrl + URLs.CALENDAR_URL);
+          final request = await _APIRequest.postRequest(url, calendarJson!);
           return request;
         }
       } catch (e) {
         AppAnalitics.sendAnaliticsData(
           AppAnalitics.ERROR,
-          "api_coms.dart => makeCalendarRequest() Error: $e"
+          "api_coms.dart => makeCalendarRequest() Error: $e",
         );
         return '{}';
       }
     }
+
+
+
   
     static String getCalendarOneWeekJSON(String username, String password, int weekOffset){
       if(storage.DataCache.getIsDemoAccount()!){
