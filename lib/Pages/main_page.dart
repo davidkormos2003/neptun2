@@ -1630,7 +1630,7 @@ Future<void> fetchCalendar() async {
   }
 
   calendarEntries.clear();
-  final list = api.CalendarRequest.getCalendarEntriesFromJSON(request);
+  final list = await api.CalendarRequest.getCalendarEntriesFromJSON(request);
   calendarEntries = list;
 
   // Cache mentés ha az első hét

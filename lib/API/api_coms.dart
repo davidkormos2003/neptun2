@@ -188,7 +188,14 @@ import '../storage.dart';
       );
 
       final decoded = conv.json.decode(request);
-
+      // 🔹 EH API → accessToken mentés
+      if (url.contains("/Hallgato/api") && decoded["data"] != null) {
+        final token = decoded["data"]["accessToken"];
+        if (token != null) {
+          await storage.DataCache.setAccessToken(token);
+          print("✅ AccessToken elmentve: $token");
+        }
+      }
       if (decoded["ErrorMessage"] != null) {
         AppAnalitics.sendAnaliticsData(
             AppAnalitics.ERROR,
@@ -247,54 +254,142 @@ import '../storage.dart';
   }
   
   class CalendarRequest{
-    static List<CalendarEntry> getCalendarEntriesFromJSON(String json) {
+    static Future<List<CalendarEntry>> getCalendarEntriesFromJSON(String json) async {
       var list = <CalendarEntry>[];
       final parsed = conv.json.decode(json);
 
       try {
-        // 🔹 Eszterházy API (új JSON: "data" lista van benne)
-        if (parsed is Map && parsed.containsKey("data") && parsed["data"] is List) {
-          final dataList = parsed["data"] as List;
+  // 🔹 Eszterházy API (új JSON: "data" lista van benne)
+      if (parsed is Map && parsed.containsKey("data") && parsed["data"] is List) {
+      final dataList = parsed["data"] as List;
 
-          for (var item in dataList) {
-            final map = item as Map<String, dynamic>;
+      for (var item in dataList) {
+        final map = item as Map<String, dynamic>;
 
-            final start = DateTime.parse(map["startDate"]).millisecondsSinceEpoch.toString();
-            final end   = DateTime.parse(map["endDate"]).millisecondsSinceEpoch.toString();
-            final location = (map["rooms"] != null && map["rooms"].toString().trim().isNotEmpty)
-                ? map["rooms"].toString()
-                : "Nincs helyszín";
-            final title = map["name"]?.toString() ?? "Ismeretlen óra";
-            final type  = map["courseType"]?.toString() ?? "";
-            final isExam = type.toLowerCase().contains("vizsga");
+        final start = DateTime.parse(map["startDate"]).millisecondsSinceEpoch.toString();
+        final end   = DateTime.parse(map["endDate"]).millisecondsSinceEpoch.toString();
 
-            list.add(CalendarEntry(start, end, location, "$title ($type)", isExam));
+        // 🔹 CourseDetails lekérése classInstanceId alapján
+        String location = "Nincs helyszín";
+
+        // kis segédfüggvény a részletek lekérésére
+        Future<String?> _fetchRoomWithAuth(String classId, {String? token, String? cookie}) async {
+          final baseUrl = storage.DataCache.getInstituteUrl()!;
+          final detailsUrl = Uri.parse(
+            "$baseUrl/Calendar/GetCourseDetails?classInstanceId=$classId&webexMeetingId=null"
+          );
+
+          final headers = <String, String>{};
+          if (token != null && token.isNotEmpty) headers["Authorization"] = "Bearer $token";
+          if (cookie != null && cookie.isNotEmpty) headers["Cookie"] = cookie;
+
+          final resp = await http.get(detailsUrl, headers: headers);
+          final body = resp.body;
+          // DEBUG
+          print("📥 Raw course details: $body");
+
+          Map<String, dynamic> parsed;
+          try {
+            parsed = conv.json.decode(body) as Map<String, dynamic>;
+          } catch (_) {
+            return null;
           }
-          return list;
+
+          // Ha siker
+          if (resp.statusCode == 200 && parsed["data"] is Map && parsed["data"]["room"] != null) {
+            return parsed["data"]["room"].toString();
+          }
+
+          // Ha explicit hibajelzés van a törzsben
+          final msg = (parsed["message"] ?? "").toString().toLowerCase();
+          final subType = (parsed["errorSubTypeName"] ?? "").toString().toLowerCase();
+
+          final isAuthExpired = resp.statusCode == 401 || resp.statusCode == 403 || resp.statusCode == 410
+              || msg.contains("authorization has been denied")
+              || subType.contains("idexpirederror");
+
+          return isAuthExpired ? "__REAUTH__" : null;
         }
 
-        // 🔹 Központi API
-        if (parsed is Map && parsed.containsKey("calendarData")) {
-          List<dynamic> sublist = parsed['calendarData'];
-          final numberRegex = RegExp(r'\d+');
-          for (var item in sublist) {
-            final map = item as Map<String, dynamic>;
-            list.add(CalendarEntry(
-              numberRegex.firstMatch(map['start'].toString())!.group(0)!,
-              numberRegex.firstMatch(map['end'].toString())!.group(0)!,
-              map['location'].toString(),
-              map['title'].toString(),
-              map['type'] == 1,
-            ));
+        try {
+          final classId = map["classInstanceId"]?.toString();
+          if (classId != null && classId.isNotEmpty) {
+            final baseUrl = storage.DataCache.getInstituteUrl()!;
+            String? token = storage.DataCache.getAccessToken();
+
+            // 1️⃣ első próbálkozás a meglévő tokennel
+            var room = await _fetchRoomWithAuth(classId, token: token);
+
+            // 2️⃣ ha lejárt / 410 → újra login + retry (Bearer + Cookie együtt)
+            if (room == "__REAUTH__" || room == null) {
+              final username = storage.DataCache.getUsername()!;
+              final password = storage.DataCache.getPassword()!;
+
+              final loginResp = await http.post(
+                Uri.parse("$baseUrl/Account/Authenticate"),
+                headers: {"Content-Type": "application/json"},
+                body: conv.json.encode({"userName": username, "password": password}),
+              );
+
+              if (loginResp.statusCode == 200) {
+                final loginJson = conv.json.decode(loginResp.body) as Map<String, dynamic>;
+                final newToken = (loginJson["data"] ?? {})["accessToken"]?.toString();
+                final cookie = loginResp.headers["set-cookie"];
+
+                if (newToken != null && newToken.isNotEmpty) {
+                  await storage.DataCache.setAccessToken(newToken);
+                  token = newToken;
+
+                  // retry Bearer + Cookie
+                  room = await _fetchRoomWithAuth(classId, token: token, cookie: cookie);
+                }
+              }
+            }
+
+            if (room != null && room != "__REAUTH__") {
+              location = room;
+            }
           }
-          return list;
+        } catch (e) {
+          AppAnalitics.sendAnaliticsData(
+            AppAnalitics.ERROR,
+            "CalendarRequest.getCalendarEntriesFromJSON() CourseDetailsError: $e",
+          );
         }
-      } catch (e) {
-        AppAnalitics.sendAnaliticsData(
-          AppAnalitics.ERROR,
-          "CalendarRequest.getCalendarEntriesFromJSON() ParseError: $e",
-        );
+
+
+        final title = map["name"]?.toString() ?? "Ismeretlen óra";
+        final type  = map["courseType"]?.toString() ?? "";
+        final isExam = type.toLowerCase().contains("vizsga");
+
+        list.add(CalendarEntry(start, end, location, "$title ($type)", isExam));
       }
+      return list;
+    }
+
+    // 🔹 Központi API
+    if (parsed is Map && parsed.containsKey("calendarData")) {
+      List<dynamic> sublist = parsed['calendarData'];
+      final numberRegex = RegExp(r'\d+');
+      for (var item in sublist) {
+        final map = item as Map<String, dynamic>;
+        list.add(CalendarEntry(
+          numberRegex.firstMatch(map['start'].toString())!.group(0)!,
+          numberRegex.firstMatch(map['end'].toString())!.group(0)!,
+          map['location'].toString(),
+          map['title'].toString(),
+          map['type'] == 1,
+        ));
+      }
+      return list;
+    }
+  } catch (e) {
+    AppAnalitics.sendAnaliticsData(
+      AppAnalitics.ERROR,
+      "CalendarRequest.getCalendarEntriesFromJSON() ParseError: $e",
+    );
+  }
+
 
       // 🔹 Ismeretlen formátum → hiba fallback
       list.add(CalendarEntry(

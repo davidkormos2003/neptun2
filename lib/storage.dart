@@ -90,7 +90,7 @@ class DataCache{
   }
 
   static final DataCache _instance = DataCache();
-
+  late String? _accessToken;
   late String? _username = '';
   late String? _password = '';
   late String? _instituteUrl = '';
@@ -307,6 +307,20 @@ class DataCache{
     await saveInt('HasCachedMail', value ?? 0);
   }
 
+
+  static String? getAccessToken() {
+    return _instance._accessToken;
+  }
+
+  // 🔹 Setter
+  static Future<void> setAccessToken(String? value) async {
+    _instance._accessToken = value;
+    if (value != null) {
+      await saveString('AccessToken', value);
+    } else {
+      await saveString('AccessToken', "");
+    }
+  }
   static bool? getHasCachedFirstWeekEpoch(){return _instance._hasCachedFirstWeekEpoch;}
   static Future<void> setHasCachedFirstWeekEpoch(int? value) async{
     _instance._hasCachedFirstWeekEpoch = value != null && value != 0;
